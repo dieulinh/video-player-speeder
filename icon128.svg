@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#45a049;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="128" height="128" rx="20" fill="url(#grad)"/>
+  
+  <!-- Play symbol -->
+  <polygon points="42,32 42,96 96,64" fill="white"/>
+  
+  <!-- Speed indicator -->
+  <text x="85" y="105" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="white">x</text>
+</svg>

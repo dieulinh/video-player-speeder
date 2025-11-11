@@ -1,0 +1,50 @@
+body {
+  width: 300px;
+  padding: 0;
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  padding: 15px;
+}
+
+h2 {
+  margin: 0 0 15px 0;
+  text-align: center;
+  color: #333;
+  font-size: 18px;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.speed-btn {
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.speed-btn:hover {
+  background-color: #45a049;
+  transform: scale(1.05);
+}
+
+.speed-btn:active {
+  background-color: #3d8b40;
+  transform: scale(0.98);
+}
+
+.speed-btn.active {
+  background-color: #2196F3;
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+}

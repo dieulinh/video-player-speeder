@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Background -->
+  <rect width="48" height="48" rx="8" fill="#4CAF50"/>
+  
+  <!-- Play symbol -->
+  <polygon points="16,12 16,36 36,24" fill="white"/>
+  
+  <!-- Speed indicator -->
+  <text x="32" y="40" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">x</text>
+</svg>
