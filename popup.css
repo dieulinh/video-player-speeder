@@ -1,101 +1,146 @@
+:root {
+  --popup-max-width: 800px;
+  --popup-compact-width: 560px;
+  --popup-collapsed-width: 320px;
+  --popup-max-height: 600px;
+  --surface: rgba(255, 255, 255, 0.96);
+  --border: rgba(15, 23, 42, 0.08);
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --success: #22c55e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
-  width: 320px;
-  padding: 0;
+  height: var(--popup-max-height);
+  min-height: var(--popup-max-height);
+  max-height: var(--popup-max-height);
   margin: 0;
+  padding: 0;
+  overflow: auto;
+  background: #e5e7eb;
   font-family: Arial, sans-serif;
-  background: rgba(255, 255, 255, 0.85);
+}
+
+body {
+  width: var(--popup-compact-width);
+  min-width: var(--popup-compact-width);
+  max-width: var(--popup-max-width);
+  height: var(--popup-max-height);
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 16px;
+  transition: width 0.25s ease;
+}
+
+body.wide {
+  width: var(--popup-max-width);
+  min-width: var(--popup-max-width);
+}
+
+body.collapsed {
+  width: var(--popup-collapsed-width);
+  min-width: var(--popup-collapsed-width);
+  padding: 12px;
 }
 
 .container {
-  padding: 15px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  height: 100%;
+  padding: 18px 22px;
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.18);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 h2 {
-  margin: 0 0 15px 0;
+  margin: 0;
   text-align: center;
-  color: #333;
-  font-size: 18px;
+  color: #111827;
+  font-size: 22px;
 }
 
 .button-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 10px;
 }
 
 .speed-btn {
-  padding: 12px 0;
+  padding: 14px 0;
   font-size: 16px;
-  font-weight: bold;
-  background-color: #4CAF50;
-  color: white;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--success), #16a34a);
+  color: #fff;
   border: none;
-  border-radius: 5px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.35);
 }
 
 .speed-btn:hover {
-  background-color: #45a049;
-  transform: scale(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(34, 197, 94, 0.45);
 }
 
 .speed-btn:active {
-  background-color: #3d8b40;
-  transform: scale(0.98);
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
 }
 
 .speed-btn.active {
-  background-color: #2196F3;
-  box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
+}
+
+.clock,
+.video-status,
+.speed-timer {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .clock {
-  margin-top: 20px;
-  padding: 10px;
   text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
-  background: #f5f5f5;
-  border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .video-status {
-  margin-top: 12px;
-  padding: 10px;
   font-size: 14px;
-  line-height: 1.5;
-  color: #444;
-  background: #fafafa;
-  border-radius: 6px;
-  border: 1px solid #e6e6e6;
-  text-align: center;
+  line-height: 1.55;
+  color: #374151;
+  min-height: 88px;
 }
 
 .video-status strong {
-  color: #2c7be5;
+  color: var(--accent);
 }
 
 .video-status .video-title {
-  margin-top: 6px;
+  margin-top: 10px;
   font-size: 13px;
-  color: #666;
+  color: #6b7280;
   font-style: italic;
 }
 
 .speed-timer {
-  margin-top: 10px;
-  padding: 8px;
-  font-size: 14px;
   text-align: center;
-  color: #333;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 6px;
-  border: 1px dashed #c5d0e6;
   font-weight: 600;
+  color: #1f2937;
+  border-style: dashed;
 }
