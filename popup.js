@@ -3,8 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const clockDisplay = document.getElementById('clockDisplay');
   const statusDisplay = document.getElementById('videoStatus');
   const speedTimerDisplay = document.getElementById('speedTimer');
+  const collapseBtn = document.getElementById('collapseBtn');
+  const rootBody = document.body;
   let speedTimerInterval = null;
   let speedStartTime = null;
+  let isCollapsed = false;
 
   const formatTime = (seconds) => {
     if (typeof seconds !== 'number' || Number.isNaN(seconds) || seconds < 0) {
@@ -95,6 +98,30 @@ document.addEventListener('DOMContentLoaded', () => {
       ${titleMarkup}
     `;
   };
+
+  const applyCollapsedState = () => {
+    if (rootBody) {
+      rootBody.classList.toggle('collapsed', isCollapsed);
+    }
+    if (collapseBtn) {
+      collapseBtn.textContent = isCollapsed ? '+' : '−';
+      collapseBtn.setAttribute('aria-expanded', String(!isCollapsed));
+      collapseBtn.setAttribute('title', isCollapsed ? 'Expand panel' : 'Collapse panel');
+    }
+  };
+
+  chrome.storage.local.get(['popupCollapsed'], (result) => {
+    isCollapsed = Boolean(result.popupCollapsed);
+    applyCollapsedState();
+  });
+
+  if (collapseBtn) {
+    collapseBtn.addEventListener('click', () => {
+      isCollapsed = !isCollapsed;
+      applyCollapsedState();
+      chrome.storage.local.set({ popupCollapsed: isCollapsed });
+    });
+  }
 
   // Load and highlight the saved speed
   chrome.storage.local.get(['videoSpeed', 'speedStartedAt'], (result) => {

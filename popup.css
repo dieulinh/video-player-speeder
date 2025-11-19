@@ -16,26 +16,28 @@
 
 html,
 body {
-  height: var(--popup-max-height);
-  min-height: var(--popup-max-height);
-  max-height: var(--popup-max-height);
   margin: 0;
   padding: 0;
-  overflow: auto;
+}
+
+html {
   background: #e5e7eb;
-  font-family: Arial, sans-serif;
 }
 
 body {
   width: var(--popup-compact-width);
   min-width: var(--popup-compact-width);
   max-width: var(--popup-max-width);
+  min-height: var(--popup-max-height);
   height: var(--popup-max-height);
+  max-height: var(--popup-max-height);
   display: flex;
   justify-content: center;
   align-items: stretch;
   padding: 16px;
   transition: width 0.25s ease;
+  background: #e5e7eb;
+  font-family: Arial, sans-serif;
 }
 
 body.wide {
@@ -46,11 +48,16 @@ body.wide {
 body.collapsed {
   width: var(--popup-collapsed-width);
   min-width: var(--popup-collapsed-width);
-  padding: 12px;
+  padding: 10px 12px;
+  min-height: auto;
+  height: auto;
+  max-height: none;
+  align-items: flex-start;
 }
 
 .container {
   width: 100%;
+  min-height: calc(var(--popup-max-height) - 32px);
   height: 100%;
   padding: 18px 22px;
   background: var(--surface);
@@ -62,11 +69,63 @@ body.collapsed {
   gap: 16px;
 }
 
-h2 {
+body.collapsed .container {
+  min-height: auto;
+  height: auto;
+  padding: 18px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-header h2 {
   margin: 0;
-  text-align: center;
   color: #111827;
   font-size: 22px;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: #e5e7eb;
+  transform: translateY(-1px);
+}
+
+.icon-btn:active {
+  transform: translateY(0);
+}
+
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  max-height: 999px;
+}
+
+body.collapsed .panel-content {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  margin: 0;
 }
 
 .button-grid {
