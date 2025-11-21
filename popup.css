@@ -1,6 +1,6 @@
 :root {
   --popup-max-width: 800px;
-  --popup-compact-width: 560px;
+  --popup-compact-width: 690px;
   --popup-collapsed-width: 320px;
   --popup-max-height: 600px;
   --surface: rgba(255, 255, 255, 0.96);
@@ -130,7 +130,7 @@ body.collapsed .panel-content {
 
 .button-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  grid-template-columns: repeat(8, minmax(70px, 1fr));
   gap: 10px;
 }
 
@@ -202,4 +202,46 @@ body.collapsed .panel-content {
   font-weight: 600;
   color: #1f2937;
   border-style: dashed;
+}
+
+.action-row {
+  display: flex;
+  justify-content: center;
+}
+
+.control-btn {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(234, 88, 12, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.control-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(234, 88, 12, 0.45);
+}
+
+.control-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 16px rgba(234, 88, 12, 0.4);
+}
+
+.ad-status {
+  text-align: center;
+  font-size: 13px;
+  color: #475569;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: rgba(248, 250, 252, 0.9);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

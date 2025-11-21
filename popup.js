@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusDisplay = document.getElementById('videoStatus');
   const speedTimerDisplay = document.getElementById('speedTimer');
   const collapseBtn = document.getElementById('collapseBtn');
+  const skipAdBtn = document.getElementById('skipAdBtn');
+  const adStatusDisplay = document.getElementById('adStatus');
   const rootBody = document.body;
   let speedTimerInterval = null;
   let speedStartTime = null;
@@ -99,6 +101,12 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   };
 
+  const setAdStatus = (message) => {
+    if (adStatusDisplay) {
+      adStatusDisplay.textContent = message;
+    }
+  };
+
   const applyCollapsedState = () => {
     if (rootBody) {
       rootBody.classList.toggle('collapsed', isCollapsed);
@@ -120,6 +128,40 @@ document.addEventListener('DOMContentLoaded', () => {
       isCollapsed = !isCollapsed;
       applyCollapsedState();
       chrome.storage.local.set({ popupCollapsed: isCollapsed });
+    });
+  }
+
+  if (skipAdBtn) {
+    skipAdBtn.addEventListener('click', () => {
+      setAdStatus('Trying to skip ads...');
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || !tabs.length) {
+          setAdStatus('No active tab found.');
+          return;
+        }
+
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: manageAdControl,
+          args: [{ action: 'startWatcher' }]
+        }, (results) => {
+          if (chrome.runtime.lastError) {
+            setAdStatus(`Error: ${chrome.runtime.lastError.message}`);
+            return;
+          }
+
+          if (Array.isArray(results) && results.length > 0 && results[0].result) {
+            const outcome = results[0].result;
+            const pieces = [];
+            if (outcome.message) pieces.push(outcome.message);
+            if (outcome.lastAttempt) pieces.push(`Last attempt: ${outcome.lastAttempt.message}`);
+            if (outcome.watcherActive) pieces.push('Watcher: ON');
+            setAdStatus(pieces.join(' | ') || 'Auto skip enabled.');
+          } else {
+            setAdStatus('No response from page script.');
+          }
+        });
+      });
     });
   }
 
@@ -270,4 +312,162 @@ function setVideoSpeed(speed) {
   }
 
   return summary;
+}
+
+// Function injected into pages to handle ad skipping and watcher lifecycle
+function manageAdControl(options = {}) {
+  const action = options.action || 'startWatcher';
+
+  const ensureState = () => {
+    if (!window.__adSkipperState) {
+      window.__adSkipperState = {
+        intervalId: null,
+        observer: null,
+        lastMessage: 'Initialized.'
+      };
+    }
+    return window.__adSkipperState;
+  };
+
+  const attemptSkip = () => {
+    const result = {
+      attempted: true,
+      skipped: false,
+      message: 'No ad controls detected.'
+    };
+
+    try {
+      const clickIfVisible = (selector) => {
+        const el = document.querySelector(selector);
+        if (el && typeof el.click === 'function' && el.offsetParent !== null) {
+          el.click();
+          return true;
+        }
+        return false;
+      };
+
+      if (clickIfVisible('.ytp-ad-skip-button-modern.ytp-button') || clickIfVisible('.ytp-ad-skip-button.ytp-button')) {
+        result.skipped = true;
+        result.message = 'Clicked YouTube skip button.';
+        return result;
+      }
+
+      if (clickIfVisible('.ytp-ad-overlay-close-button')) {
+        result.skipped = true;
+        result.message = 'Closed overlay ad.';
+        return result;
+      }
+
+      const adVideo = document.querySelector('.ad-showing video');
+      if (adVideo && !Number.isNaN(adVideo.duration) && adVideo.duration > 0) {
+        adVideo.currentTime = adVideo.duration;
+        result.skipped = true;
+        result.message = 'Fast-forwarded ad video.';
+        return result;
+      }
+
+      const videos = Array.from(document.querySelectorAll('video'));
+      const candidate = videos.find(video => {
+        if (!video || Number.isNaN(video.duration) || video.duration === Infinity) return false;
+        const shortContent = video.duration > 0 && video.duration <= 45;
+        const isVisible = video.offsetHeight > 0 && video.offsetWidth > 0;
+        const inAdContainer = !!(video.closest('.ad-container') || video.closest('.ad-showing'));
+        return isVisible && (shortContent || inAdContainer);
+      });
+
+      if (candidate) {
+        candidate.currentTime = candidate.duration;
+        result.skipped = true;
+        result.message = 'Skipped probable ad video.';
+        return result;
+      }
+
+      result.message = 'No skippable ad detected right now.';
+      return result;
+    } catch (error) {
+      result.message = `Error while skipping ad: ${error.message}`;
+      return result;
+    }
+  };
+
+  const state = ensureState();
+
+  if (action === 'skipOnce') {
+    const attempt = attemptSkip();
+    state.lastMessage = attempt.message;
+    return {
+      action,
+      watcherActive: !!(state.intervalId || state.observer),
+      lastAttempt: attempt,
+      message: attempt.message
+    };
+  }
+
+  if (action === 'stopWatcher') {
+    if (state.intervalId) {
+      clearInterval(state.intervalId);
+      state.intervalId = null;
+    }
+    if (state.observer) {
+      try {
+        state.observer.disconnect();
+      } catch (error) {}
+      state.observer = null;
+    }
+    state.lastMessage = 'Watcher stopped.';
+    return {
+      action,
+      watcherActive: false,
+      lastAttempt: null,
+      message: 'Auto skip watcher stopped.'
+    };
+  }
+
+  if (action === 'startWatcher') {
+    if (state.intervalId || state.observer) {
+      const attempt = attemptSkip();
+      state.lastMessage = attempt.message;
+      return {
+        action,
+        watcherActive: true,
+        lastAttempt: attempt,
+        message: 'Watcher already active.'
+      };
+    }
+
+    const attempt = attemptSkip();
+    state.lastMessage = attempt.message;
+
+    state.intervalId = window.setInterval(() => {
+      const res = attemptSkip();
+      state.lastMessage = res.message;
+    }, 1500);
+
+    try {
+      state.observer = new MutationObserver(() => {
+        const res = attemptSkip();
+        state.lastMessage = res.message;
+      });
+      state.observer.observe(document.body || document.documentElement, {
+        childList: true,
+        subtree: true
+      });
+    } catch (error) {
+      state.observer = null;
+    }
+
+    return {
+      action,
+      watcherActive: true,
+      lastAttempt: attempt,
+      message: 'Auto skip watcher enabled.'
+    };
+  }
+
+  return {
+    action,
+    watcherActive: !!(state.intervalId || state.observer),
+    lastAttempt: null,
+    message: `Unknown action: ${action}`
+  };
 }

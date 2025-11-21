@@ -23,6 +23,9 @@
         <button class="speed-btn" data-speed="2.5">2.5x</button>
         <button class="speed-btn" data-speed="2.75">2.75x</button>
         <button class="speed-btn" data-speed="3">3x</button>
+        <button class="speed-btn" data-speed="3.25">3.25x</button>
+        <button class="speed-btn" data-speed="3.5">3.5x</button>
+
         <button class="speed-btn" data-speed="4">4x</button>
         <button class="speed-btn" data-speed="5">5x</button>
         <button class="speed-btn" data-speed="6">6x</button>
@@ -31,8 +34,12 @@
         <button class="speed-btn" data-speed="9">9x</button>
         <button class="speed-btn" data-speed="10">10x</button>
       </div>
+      
       <div class="clock" id="clockDisplay">
         00:00:00
+      </div>
+      <div class="action-row">
+        <button id="skipAdBtn" class="control-btn" type="button">Skip Ad</button>
       </div>
       <div class="video-status" id="videoStatus">
         No video info yet. Pick a speed to fetch playback progress.
@@ -40,6 +47,8 @@
       <div class="speed-timer" id="speedTimer">
         Speed timer: --
       </div>
+     
+      <div class="ad-status" id="adStatus">Ad status: Waiting for action.</div>
     </div>
   </div>
   <script src="popup.js"></script>
