@@ -5,7 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const speedTimerDisplay = document.getElementById('speedTimer');
   const collapseBtn = document.getElementById('collapseBtn');
   const skipAdBtn = document.getElementById('skipAdBtn');
+  const rewindBtn = document.getElementById('rewindBtn');
+  const forwardBtn = document.getElementById('forwardBtn');
   const adStatusDisplay = document.getElementById('adStatus');
+  const rewindStatusDisplay = document.getElementById('rewindStatus');
   const rootBody = document.body;
   let speedTimerInterval = null;
   let speedStartTime = null;
@@ -107,6 +110,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const setRewindStatus = (message) => {
+    if (rewindStatusDisplay) {
+      rewindStatusDisplay.textContent = message;
+    }
+  };
+  const setForwardStatus = (message) => {
+    if (forwardStatusDisplay) {
+      forwardStatusDisplay.textContent = message;
+    }
   const applyCollapsedState = () => {
     if (rootBody) {
       rootBody.classList.toggle('collapsed', isCollapsed);
@@ -159,6 +171,48 @@ document.addEventListener('DOMContentLoaded', () => {
             setAdStatus(pieces.join(' | ') || 'Auto skip enabled.');
           } else {
             setAdStatus('No response from page script.');
+          }
+        });
+      });
+    });
+  }
+  
+  if (rewindBtn) {
+    rewindBtn.addEventListener('click', () => {
+      setRewindStatus('Rewinding 60 seconds...');
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || !tabs.length) {
+          setRewindStatus('No active tab found.');
+          return;
+        }
+
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: rewindActiveVideo,
+          args: [60]
+        }, (results) => {
+          if (chrome.runtime.lastError) {
+            setRewindStatus(`Error: ${chrome.runtime.lastError.message}`);
+            return;
+          }
+
+          if (!Array.isArray(results) || !results.length) {
+            setRewindStatus('No response from page script.');
+            return;
+          }
+
+          const payload = results[0].result;
+          if (!payload) {
+            setRewindStatus('No response from page script.');
+            return;
+          }
+
+          if (payload.summary) {
+            renderStatus(payload.summary);
+            setRewindStatus(payload.message || 'Moved playback back 60 seconds.');
+          } else {
+            renderStatus(payload);
+            setRewindStatus(payload.message || 'Attempted to rewind playback.');
           }
         });
       });
@@ -469,5 +523,49 @@ function manageAdControl(options = {}) {
     watcherActive: !!(state.intervalId || state.observer),
     lastAttempt: null,
     message: `Unknown action: ${action}`
+  };
+}
+
+// Function injected into pages to rewind the active video
+function rewindActiveVideo(seconds = 60) {
+  const step = Number.isFinite(Number(seconds)) ? Math.max(1, Number(seconds)) : 60;
+  const videos = Array.from(document.querySelectorAll('video')).filter(video => !Number.isNaN(video.currentTime));
+
+  if (!videos.length) {
+    return {
+      summary: {
+        found: false,
+        speed: 1,
+        currentTime: 0,
+        duration: null,
+        playing: false,
+        title: document.title || ''
+      },
+      message: 'No video element detected on this page.'
+    };
+  }
+
+  const activeVideo = videos.find(video => !video.paused) || videos[0];
+  const before = Number(activeVideo.currentTime) || 0;
+  const target = Math.max(0, before - step);
+  activeVideo.currentTime = target;
+
+  const summary = {
+    found: true,
+    speed: activeVideo.playbackRate || 1,
+    currentTime: activeVideo.currentTime,
+    duration: Number.isFinite(activeVideo.duration) ? activeVideo.duration : null,
+    playing: !activeVideo.paused,
+    title: document.title || ''
+  };
+
+  const moved = before - activeVideo.currentTime;
+  const message = moved > 0
+    ? `Moved back ${Math.round(moved)} seconds.`
+    : 'Already at the start of the video.';
+
+  return {
+    summary,
+    message
   };
 }
