@@ -115,10 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
       rewindStatusDisplay.textContent = message;
     }
   };
-  const setForwardStatus = (message) => {
-    if (forwardStatusDisplay) {
-      forwardStatusDisplay.textContent = message;
-    }
+
   const applyCollapsedState = () => {
     if (rootBody) {
       rootBody.classList.toggle('collapsed', isCollapsed);
@@ -176,7 +173,32 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
-  
+  if (forwardBtn) {
+     forwardBtn.addEventListener('click', () => {
+      
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+       
+
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: forwardActiveVideo,
+          args: [60]
+        }, (results) => {
+          if (chrome.runtime.lastError) {
+            console.error(`Error: ${chrome.runtime.lastError.message}`);
+            return;
+          }
+
+          if (!Array.isArray(results) || !results.length) {
+            console.error('No response from page script.');
+            return;
+          }
+
+          
+        });
+      });
+    });
+  }
   if (rewindBtn) {
     rewindBtn.addEventListener('click', () => {
       setRewindStatus('Rewinding 60 seconds...');
@@ -524,6 +546,15 @@ function manageAdControl(options = {}) {
     lastAttempt: null,
     message: `Unknown action: ${action}`
   };
+}
+function forwardActiveVideo(seconds = 60) {
+  const step = Number.isFinite(Number(seconds)) ? Math.max(1, Number(seconds)) : 60;
+  const videos = Array.from(document.querySelectorAll('video')).filter(video => !Number.isNaN(video.currentTime));
+  const activeVideo = videos.find(video => !video.paused) || videos[0];
+  const before = Number(activeVideo.currentTime) || 0;
+  const target = Math.max(0, before + step);
+  activeVideo.currentTime = target;
+
 }
 
 // Function injected into pages to rewind the active video
