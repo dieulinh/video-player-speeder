@@ -7,12 +7,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const skipAdBtn = document.getElementById('skipAdBtn');
   const rewindBtn = document.getElementById('rewindBtn');
   const forwardBtn = document.getElementById('forwardBtn');
+  const loopToggle = document.getElementById('loopToggle');
   const adStatusDisplay = document.getElementById('adStatus');
   const rewindStatusDisplay = document.getElementById('rewindStatus');
+  const loopStatusDisplay = document.getElementById('loopStatus');
   const rootBody = document.body;
   let speedTimerInterval = null;
   let speedStartTime = null;
   let isCollapsed = false;
+  let isLoopEnabled = false;
 
   const formatTime = (seconds) => {
     if (typeof seconds !== 'number' || Number.isNaN(seconds) || seconds < 0) {
@@ -116,6 +119,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const setLoopStatus = (message) => {
+    if (loopStatusDisplay) {
+      loopStatusDisplay.textContent = message;
+    }
+  };
+
   const applyCollapsedState = () => {
     if (rootBody) {
       rootBody.classList.toggle('collapsed', isCollapsed);
@@ -127,9 +136,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  chrome.storage.local.get(['popupCollapsed'], (result) => {
+  chrome.storage.local.get(['popupCollapsed', 'videoLoopEnabled'], (result) => {
     isCollapsed = Boolean(result.popupCollapsed);
+    isLoopEnabled = Boolean(result.videoLoopEnabled);
     applyCollapsedState();
+
+    if (loopToggle) {
+      loopToggle.checked = isLoopEnabled;
+    }
+    setLoopStatus(isLoopEnabled ? 'Loop: On' : 'Loop: Off');
   });
 
   if (collapseBtn) {
@@ -169,6 +184,60 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             setAdStatus('No response from page script.');
           }
+        });
+      });
+    });
+  }
+
+  if (loopToggle) {
+    loopToggle.addEventListener('change', () => {
+      const previousState = isLoopEnabled;
+      const enabled = Boolean(loopToggle.checked);
+      isLoopEnabled = enabled;
+      setLoopStatus(enabled ? 'Loop: Turning on...' : 'Loop: Turning off...');
+
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || !tabs.length) {
+          setLoopStatus('Loop: No active tab found.');
+          isLoopEnabled = previousState;
+          loopToggle.checked = previousState;
+          return;
+        }
+
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: setVideoLoop,
+          args: [enabled]
+        }, (results) => {
+          if (chrome.runtime.lastError) {
+            setLoopStatus(`Loop error: ${chrome.runtime.lastError.message}`);
+            isLoopEnabled = previousState;
+            loopToggle.checked = previousState;
+            return;
+          }
+
+          if (!Array.isArray(results) || !results.length) {
+            setLoopStatus('Loop: No response from page.');
+            isLoopEnabled = previousState;
+            loopToggle.checked = previousState;
+            return;
+          }
+
+          const payload = results[0].result;
+          if (!payload) {
+            setLoopStatus('Loop: No response from page.');
+            isLoopEnabled = previousState;
+            loopToggle.checked = previousState;
+            return;
+          }
+
+          chrome.storage.local.set({ videoLoopEnabled: enabled });
+
+          const summary = payload.summary || payload;
+          if (summary) {
+            renderStatus(summary);
+          }
+          setLoopStatus(payload.message || (enabled ? 'Loop: On' : 'Loop: Off'));
         });
       });
     });
@@ -388,6 +457,80 @@ function setVideoSpeed(speed) {
   }
 
   return summary;
+}
+
+function setVideoLoop(enabled) {
+  const shouldLoop = Boolean(enabled);
+  sessionStorage.setItem('preferredVideoLoop', shouldLoop ? 'true' : 'false');
+
+  const videos = Array.from(document.querySelectorAll('video'));
+  const summary = {
+    found: false,
+    speed: 1,
+    currentTime: 0,
+    duration: null,
+    playing: false,
+    title: document.title || ''
+  };
+
+  if (videos.length > 0) {
+    videos.forEach(video => {
+      video.loop = shouldLoop;
+    });
+
+    const activeVideo = videos.find(video => !Number.isNaN(video.currentTime)) || videos[0];
+
+    if (activeVideo) {
+      summary.found = true;
+      summary.speed = activeVideo.playbackRate || 1;
+      summary.currentTime = activeVideo.currentTime || 0;
+      summary.duration = Number.isFinite(activeVideo.duration) ? activeVideo.duration : null;
+      summary.playing = !activeVideo.paused;
+    }
+  }
+
+  const applyLoopSetting = () => {
+    const savedLoop = sessionStorage.getItem('preferredVideoLoop') === 'true';
+    document.querySelectorAll('video').forEach(video => {
+      if (video.loop !== savedLoop) {
+        video.loop = savedLoop;
+      }
+    });
+  };
+
+  if (!window.videoLoopObserverInitialized) {
+    window.videoLoopObserverInitialized = true;
+    window.videoLoopApplySetting = applyLoopSetting;
+
+    const observer = new MutationObserver(() => {
+      if (typeof window.videoLoopApplySetting === 'function') {
+        window.videoLoopApplySetting();
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    document.addEventListener('play', () => {
+      if (typeof window.videoLoopApplySetting === 'function') {
+        window.videoLoopApplySetting();
+      }
+    }, true);
+
+    window.videoLoopObserver = observer;
+  } else if (typeof window.videoLoopApplySetting === 'function') {
+    window.videoLoopApplySetting();
+  }
+
+  const message = shouldLoop ? 'Loop: On' : 'Loop: Off';
+
+  return {
+    summary,
+    loopEnabled: shouldLoop,
+    message
+  };
 }
 
 // Function injected into pages to handle ad skipping and watcher lifecycle
