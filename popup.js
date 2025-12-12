@@ -12,10 +12,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const rewindStatusDisplay = document.getElementById('rewindStatus');
   const loopStatusDisplay = document.getElementById('loopStatus');
   const rootBody = document.body;
+  const themeButtons = document.querySelectorAll('.theme-btn');
+  const availableThemes = ['light', 'dim', 'night'];
   let speedTimerInterval = null;
   let speedStartTime = null;
   let isCollapsed = false;
   let isLoopEnabled = false;
+  let activeTheme = 'light';
 
   const formatTime = (seconds) => {
     if (typeof seconds !== 'number' || Number.isNaN(seconds) || seconds < 0) {
@@ -136,15 +139,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  chrome.storage.local.get(['popupCollapsed', 'videoLoopEnabled'], (result) => {
+  const applyTheme = (theme) => {
+    const nextTheme = availableThemes.includes(theme) ? theme : 'light';
+    activeTheme = nextTheme;
+
+    if (rootBody) {
+      availableThemes.forEach(name => rootBody.classList.remove(`theme-${name}`));
+      rootBody.classList.add(`theme-${nextTheme}`);
+    }
+
+    themeButtons.forEach(btn => {
+      const isActive = btn.dataset.theme === nextTheme;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  };
+
+  applyTheme(activeTheme);
+
+  chrome.storage.local.get(['popupCollapsed', 'videoLoopEnabled', 'viewTheme'], (result) => {
     isCollapsed = Boolean(result.popupCollapsed);
     isLoopEnabled = Boolean(result.videoLoopEnabled);
+    activeTheme = result.viewTheme || 'light';
     applyCollapsedState();
+    applyTheme(activeTheme);
 
     if (loopToggle) {
       loopToggle.checked = isLoopEnabled;
     }
     setLoopStatus(isLoopEnabled ? 'Loop: On' : 'Loop: Off');
+  });
+
+  themeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const selectedTheme = button.dataset.theme;
+      applyTheme(selectedTheme);
+      chrome.storage.local.set({ viewTheme: activeTheme });
+    });
   });
 
   if (collapseBtn) {
