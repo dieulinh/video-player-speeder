@@ -341,6 +341,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Open largest iframe video in new tab
+  const openIframeVideoBtn = document.getElementById('openIframeVideoBtn');
+  if (openIframeVideoBtn) {
+    openIframeVideoBtn.addEventListener('click', () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || !tabs.length) {
+          alert('No active tab found.');
+          return;
+        }
+
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: openLargestIframeVideoInNewTab
+        }, (results) => {
+          if (chrome.runtime.lastError) {
+            alert(`Error: ${chrome.runtime.lastError.message}`);
+            return;
+          }
+          alert('Opening video in new tab...');
+        });
+      });
+    });
+  }
+
   // Load and highlight the saved speed
   chrome.storage.local.get(['videoSpeed', 'speedStartedAt'], (result) => {
     if (result.videoSpeed) {
@@ -424,7 +448,62 @@ function setVideoSpeed(speed) {
   // Store speed in page's sessionStorage for persistence
   sessionStorage.setItem('preferredVideoSpeed', speed);
   
-  const videos = Array.from(document.querySelectorAll('video'));
+  // Helper function to get all video elements including those in shadow DOM
+  function getAllVideoElements() {
+    const videos = [];
+    console.log('Searching for video elements in the page...');
+    
+    // Get all video elements from regular DOM
+    videos.push(...Array.from(document.querySelectorAll('video')));
+    if (videos.length > 0)
+    {
+      console.log(`Found ${videos.length} video(s) in regular DOM.`);
+      console.log(videos);
+    }
+    
+    
+    // Search within shadow DOM elements
+    const allElements = document.querySelectorAll('*');
+    allElements.forEach(element => {
+      if (element.shadowRoot) {
+        const shadowVideos = Array.from(element.shadowRoot.querySelectorAll('video'));
+        videos.push(...shadowVideos);
+      }
+    });
+    
+    // Search within iframes (same-origin only)
+    const iframes = Array.from(document.querySelectorAll('iframe'));
+    console.log(`Found ${iframes.length} iframe(s) on the page.`);
+    iframes.forEach(iframe => {
+      const iframeDoc = iframe.contentDocument;
+      if (!iframeDoc) return; // cross-origin — skip silently
+      const iframeVideos = Array.from(iframeDoc.querySelectorAll('video'));
+      videos.push(...iframeVideos);
+      console.log(`Found ${iframeVideos.length} video(s) in iframe`);
+      iframeDoc.querySelectorAll('*').forEach(element => {
+        if (element.shadowRoot) {
+          videos.push(...Array.from(element.shadowRoot.querySelectorAll('video')));
+        }
+      });
+    });
+    
+    return videos;
+  }
+  
+  // Helper function to force set speed on a video element
+  function forceSetSpeed(video, targetSpeed) {
+    video.playbackRate = targetSpeed;
+    // For blob videos, we need to be extra aggressive
+    if (video.src && video.src.includes('blob:')) {
+      console.log('Applying extra speed enforcement for blob video:', video.src);
+      // Try multiple times to ensure it sticks
+      setTimeout(() => { video.playbackRate = targetSpeed; }, 0);
+      setTimeout(() => { video.playbackRate = targetSpeed; }, 50);
+      setTimeout(() => { video.playbackRate = targetSpeed; }, 100);
+    }
+  }
+  
+  const videos = getAllVideoElements();
   const summary = {
     found: false,
     speed,
@@ -435,11 +514,30 @@ function setVideoSpeed(speed) {
   };
 
   if (videos.length > 0) {
-    videos.forEach(video => {
-      video.playbackRate = speed;
+    videos.forEach((video, index) => {
+      forceSetSpeed(video, speed);
+      // Log video info including blob URLs
+      console.log(`[${index + 1}/${videos.length}] Set speed ${speed}x on video element`, {
+        src: video.src || 'no src',
+        isBlob: video.src && video.src.includes('blob:'),
+        sources: Array.from(video.querySelectorAll('source')).map(s => s.src),
+        className: video.className,
+        id: video.id,
+        inShadowDOM: !document.contains(video)
+      });
     });
 
-    const activeVideo = videos.find(video => !Number.isNaN(video.currentTime)) || videos[0];
+    // Find the most relevant active video (prefer playing videos, then visible ones)
+    const playingVideo = videos.find(video => !video.paused && !Number.isNaN(video.currentTime));
+    const visibleVideo = videos.find(video => {
+      try {
+        const rect = video.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && !Number.isNaN(video.currentTime);
+      } catch (e) {
+        return false;
+      }
+    });
+    const activeVideo = playingVideo || visibleVideo || videos.find(video => !Number.isNaN(video.currentTime)) || videos[0];
 
     if (activeVideo) {
       summary.found = true;
@@ -448,9 +546,9 @@ function setVideoSpeed(speed) {
       summary.playing = !activeVideo.paused;
     }
 
-    console.log(`Video speed set to ${speed}x`);
+    console.log(`✅ Video speed set to ${speed}x (found ${videos.length} video element(s) across ${Array.from(document.querySelectorAll('iframe')).length} iframe(s))`);
   } else {
-    console.log('No video found on this page');
+    console.log('No video element found on this page');
   }
   
   // Set up observer to maintain speed on new/replaced videos
@@ -460,10 +558,10 @@ function setVideoSpeed(speed) {
     const observer = new MutationObserver(() => {
       const savedSpeed = parseFloat(sessionStorage.getItem('preferredVideoSpeed'));
       if (savedSpeed) {
-        const allVideos = document.querySelectorAll('video');
+        const allVideos = getAllVideoElements();
         allVideos.forEach(video => {
           if (Math.abs(video.playbackRate - savedSpeed) > 0.01) {
-            video.playbackRate = savedSpeed;
+            forceSetSpeed(video, savedSpeed);
             console.log(`Reapplied speed ${savedSpeed}x to video`);
           }
         });
@@ -480,21 +578,205 @@ function setVideoSpeed(speed) {
       if (e.target.tagName === 'VIDEO') {
         const savedSpeed = parseFloat(sessionStorage.getItem('preferredVideoSpeed'));
         if (savedSpeed) {
-          e.target.playbackRate = savedSpeed;
-          console.log(`Applied speed ${savedSpeed}x on play event`);
+          forceSetSpeed(e.target, savedSpeed);
+          console.log(`Applied speed ${savedSpeed}x on play event`, {
+            src: e.target.src,
+            isBlob: e.target.src && e.target.src.includes('blob:'),
+            className: e.target.className
+          });
         }
       }
     }, true);
+    
+    // Listen for rate change attempts and enforce saved speed
+    document.addEventListener('ratechange', (e) => {
+      if (e.target.tagName === 'VIDEO') {
+        const savedSpeed = parseFloat(sessionStorage.getItem('preferredVideoSpeed'));
+        if (savedSpeed && Math.abs(e.target.playbackRate - savedSpeed) > 0.01) {
+          forceSetSpeed(e.target, savedSpeed);
+          console.log(`Enforced speed ${savedSpeed}x on ratechange event`);
+        }
+      }
+    }, true);
+    
+    // Additional enforcement: check every 100ms for all videos in all iframes
+    setInterval(() => {
+      const savedSpeed = parseFloat(sessionStorage.getItem('preferredVideoSpeed'));
+      if (savedSpeed) {
+        const allVideos = getAllVideoElements();
+        allVideos.forEach(video => {
+          // Enforce speed on all videos, especially aggressive for blob videos
+          if (Math.abs(video.playbackRate - savedSpeed) > 0.01) {
+            video.playbackRate = savedSpeed;
+            if (video.src && video.src.includes('blob:')) {
+              console.log(`Re-enforced blob video speed to ${savedSpeed}x`);
+            }
+          }
+        });
+      }
+    }, 100);
   }
 
   return summary;
+}
+
+function openLargestIframeVideoInNewTab() {
+  // Find all iframes
+  const iframes = Array.from(document.querySelectorAll('iframe'));
+  const accessibleIframes = [];
+  const crossOriginIframes = [];
+
+  console.log(`Found ${iframes.length} iframe(s) on the page`);
+
+  iframes.forEach((iframe, index) => {
+    const rect = iframe.getBoundingClientRect();
+    const size = rect.width * rect.height;
+    const src = iframe.getAttribute('src');
+    
+    const iframeDoc = iframe.contentDocument;
+    if (iframeDoc) {
+      const videos = Array.from(iframeDoc.querySelectorAll('video'));
+      if (videos.length > 0) {
+        accessibleIframes.push({
+          iframe,
+          iframeDoc,
+          videos,
+          size,
+          width: rect.width,
+          height: rect.height,
+          src,
+          type: 'same-origin'
+        });
+        console.log(`[${index}] Same-origin iframe with ${videos.length} video(s): ${rect.width}x${rect.height}px`);
+      }
+    } else {
+      // Cross-origin — contentDocument is null, no throw, no storage access error
+      console.log(`[${index}] Cross-origin iframe (cannot access content): ${rect.width}x${rect.height}px, src: ${src}`);
+      crossOriginIframes.push({
+        iframe,
+        size,
+        width: rect.width,
+        height: rect.height,
+        src,
+        type: 'cross-origin'
+      });
+    }
+  });
+
+  let videoUrl = null;
+  let source = '';
+
+  // Priority 1: Use same-origin iframe with videos
+  if (accessibleIframes.length > 0) {
+    const largestIframe = accessibleIframes.reduce((largest, current) => 
+      current.size > largest.size ? current : largest
+    );
+
+    console.log(`Using largest same-origin iframe: ${largestIframe.width}x${largestIframe.height}px`);
+    const video = largestIframe.videos[0];
+
+    if (video.src) {
+      videoUrl = video.src;
+    } else {
+      const sources = Array.from(video.querySelectorAll('source'));
+      if (sources.length > 0) {
+        videoUrl = sources[0].src;
+      }
+    }
+    
+    source = 'same-origin iframe';
+  } 
+  // Priority 2: Use largest cross-origin iframe's src
+  else if (crossOriginIframes.length > 0) {
+    const largestCrossOrigin = crossOriginIframes.reduce((largest, current) => 
+      current.size > largest.size ? current : largest
+    );
+
+    if (largestCrossOrigin.src && !largestCrossOrigin.src.includes('blob:')) {
+      videoUrl = largestCrossOrigin.src;
+      source = 'cross-origin iframe (direct navigation)';
+      console.log(`Using cross-origin iframe src: ${videoUrl}`);
+    }
+  }
+  // Priority 3: Look for videos in main page
+  else {
+    const mainPageVideos = Array.from(document.querySelectorAll('video'));
+    if (mainPageVideos.length > 0) {
+      const largestVideo = mainPageVideos.reduce((largest, current) => {
+        const largestRect = largest.getBoundingClientRect();
+        const currentRect = current.getBoundingClientRect();
+        return (largestRect.width * largestRect.height) > (currentRect.width * currentRect.height) ? largest : current;
+      });
+
+      if (largestVideo.src) {
+        videoUrl = largestVideo.src;
+      } else {
+        const sources = Array.from(largestVideo.querySelectorAll('source'));
+        if (sources.length > 0) {
+          videoUrl = sources[0].src;
+        }
+      }
+
+      source = 'main page';
+      console.log(`Using video from main page`);
+    }
+  }
+
+  if (!videoUrl) {
+    alert('Could not find video.\n\nOptions:\n1. If the video is in a cross-origin iframe, right-click it and select "Open Frame in New Tab"\n2. The video might be using blob URLs which cannot be directly accessed');
+    return;
+  }
+
+  console.log(`Opening video from ${source}: ${videoUrl}`);
+
+  // Get the current speed setting
+  const currentSpeed = parseFloat(sessionStorage.getItem('preferredVideoSpeed')) || 1;
+
+  // Store the speed in sessionStorage so the new tab can access it
+  sessionStorage.setItem('videoSpeedToApply', currentSpeed);
+
+  // Open the video in a new tab
+  window.open(videoUrl, '_blank');
 }
 
 function setVideoLoop(enabled) {
   const shouldLoop = Boolean(enabled);
   sessionStorage.setItem('preferredVideoLoop', shouldLoop ? 'true' : 'false');
 
-  const videos = Array.from(document.querySelectorAll('video'));
+  // Helper function to get all video elements including those in shadow DOM
+  function getAllVideoElements() {
+    const videos = [];
+    
+    // Get all video elements from regular DOM
+    videos.push(...Array.from(document.querySelectorAll('video')));
+    
+    // Search within shadow DOM elements
+    const allElements = document.querySelectorAll('*');
+    allElements.forEach(element => {
+      if (element.shadowRoot) {
+        const shadowVideos = Array.from(element.shadowRoot.querySelectorAll('video'));
+        videos.push(...shadowVideos);
+      }
+    });
+    
+    // Search within iframes (same-origin only)
+    const iframes = Array.from(document.querySelectorAll('iframe'));
+    iframes.forEach(iframe => {
+      const iframeDoc = iframe.contentDocument;
+      if (!iframeDoc) return; // cross-origin — skip silently
+      const iframeVideos = Array.from(iframeDoc.querySelectorAll('video'));
+      videos.push(...iframeVideos);
+      iframeDoc.querySelectorAll('*').forEach(element => {
+        if (element.shadowRoot) {
+          videos.push(...Array.from(element.shadowRoot.querySelectorAll('video')));
+        }
+      });
+    });
+    
+    return videos;
+  }
+
+  const videos = getAllVideoElements();
   const summary = {
     found: false,
     speed: 1,
@@ -522,7 +804,8 @@ function setVideoLoop(enabled) {
 
   const applyLoopSetting = () => {
     const savedLoop = sessionStorage.getItem('preferredVideoLoop') === 'true';
-    document.querySelectorAll('video').forEach(video => {
+    const allVideos = getAllVideoElements();
+    allVideos.forEach(video => {
       if (video.loop !== savedLoop) {
         video.loop = savedLoop;
       }

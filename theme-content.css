@@ -1,0 +1,137 @@
+:root {
+  --stw-bg: rgba(255, 255, 255, 0.94);
+  --stw-border: rgba(15, 23, 42, 0.12);
+  --stw-shadow: 0 14px 38px rgba(15, 23, 42, 0.28);
+  --stw-text: #0f172a;
+  --stw-subtle: #475569;
+  --stw-accent: #2563eb;
+  --stw-accent-strong: #1d4ed8;
+  --stw-surface: #f1f5f9;
+  --stw-surface-hover: #e2e8f0;
+}
+
+.speed-theme-widget * {
+  box-sizing: border-box;
+}
+
+.speed-theme-widget {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  font-family: Arial, sans-serif;
+  color: var(--stw-text);
+  max-width: 360px;
+}
+
+.speed-theme-card {
+  background: var(--stw-bg);
+  border: 1px solid var(--stw-border);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: var(--stw-shadow);
+  backdrop-filter: blur(8px);
+  min-width: 260px;
+}
+
+.speed-theme-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.speed-theme-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.speed-theme-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.speed-theme-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--stw-border);
+  background: var(--stw-surface);
+  color: var(--stw-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.speed-theme-icon-btn:hover {
+  background: var(--stw-surface-hover);
+  transform: translateY(-1px);
+}
+
+.speed-theme-icon-btn:active {
+  transform: translateY(0);
+}
+
+.speed-theme-body.collapsed {
+  display: none;
+}
+
+.speed-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.speed-theme-btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--stw-border);
+  background: var(--stw-surface);
+  color: var(--stw-text);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.speed-theme-btn:hover {
+  background: var(--stw-surface-hover);
+  transform: translateY(-1px);
+}
+
+.speed-theme-btn:active {
+  transform: translateY(0);
+}
+
+.speed-theme-btn.active {
+  background: linear-gradient(135deg, var(--stw-accent), var(--stw-accent-strong));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+}
+
+.speed-theme-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--stw-subtle);
+  line-height: 1.4;
+}
+
+.speed-theme-toast {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--stw-text);
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: none;
+}
+
+.speed-theme-toast.visible {
+  display: block;
+}
