@@ -28,6 +28,20 @@
     return h > 0 ? `${h}:${mm}:${ss}` : `${mm.padStart(2, '0')}:${ss}`;
   };
 
+  const storageLocal = chrome?.storage?.local;
+  const storageGet = (keys, cb) => {
+    if (storageLocal) {
+      storageLocal.get(keys, cb);
+      return;
+    }
+    if (typeof cb === 'function') cb({});
+  };
+  const storageSet = (values) => {
+    if (storageLocal) {
+      storageLocal.set(values);
+    }
+  };
+
   // ── Video helpers ────────────────────────────────────────────────────────
   const getAllVideos = () => {
     const videos = [...document.querySelectorAll('video')];
@@ -299,6 +313,8 @@
           <button class="speed-btn" data-speed="1.6">1.6x</button>
           <button class="speed-btn" data-speed="1.65">1.65x</button>
           <button class="speed-btn" data-speed="1.75">1.75x</button>
+          <button class="speed-btn" data-speed="1.85">1.85x</button>
+          <button class="speed-btn" data-speed="1.95">1.95x</button>
           <button class="speed-btn" data-speed="2">2x</button>
           <button class="speed-btn" data-speed="2.25">2.25x</button>
           <button class="speed-btn" data-speed="2.5">2.5x</button>
@@ -495,7 +511,7 @@
     }
 
     // ─ Load saved state ─
-    chrome.storage.local.get(['videoSpeed', 'speedStartedAt', 'videoLoopEnabled', 'viewTheme', 'popupCollapsed'], (res) => {
+    storageGet(['videoSpeed', 'speedStartedAt', 'videoLoopEnabled', 'viewTheme', 'popupCollapsed'], (res) => {
       isCollapsed   = Boolean(res.popupCollapsed);
       isLoopEnabled = Boolean(res.videoLoopEnabled);
       applyCollapsed();
@@ -515,7 +531,7 @@
     collapseBtn?.addEventListener('click', () => {
       isCollapsed = !isCollapsed;
       applyCollapsed();
-      chrome.storage.local.set({ popupCollapsed: isCollapsed });
+      storageSet({ popupCollapsed: isCollapsed });
     });
 
     // ─ Event: close ─
@@ -525,7 +541,7 @@
     themeButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         applyTheme(btn.dataset.theme);
-        chrome.storage.local.set({ viewTheme: activeTheme });
+        storageSet({ viewTheme: activeTheme });
       });
     });
 
@@ -537,7 +553,7 @@
         speedButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const startedAt = Date.now();
-        chrome.storage.local.set({ videoSpeed: speed, speedStartedAt: startedAt });
+      
         startSpeedTimer(startedAt);
         // Apply directly — content script already lives in the page DOM
         const videos = getAllVideos();
@@ -605,7 +621,7 @@
         return;
       }
       videos.forEach(v => { v.loop = enabled; });
-      chrome.storage.local.set({ videoLoopEnabled: enabled });
+      storageSet({ videoLoopEnabled: enabled });
       if (loopStatus) loopStatus.textContent = enabled ? 'Loop: On' : 'Loop: Off';
       renderStatus(buildSummary(videos));
     });
@@ -658,13 +674,13 @@
     else host.style.display = '';
     isVisible = true;
     positionPanel();
-    chrome.storage.local.set({ panelVisible: true });
+    storageSet({ panelVisible: true });
   };
 
   const hidePanel = () => {
     if (host) host.style.display = 'none';
     isVisible = false;
-    chrome.storage.local.set({ panelVisible: false });
+    storageSet({ panelVisible: false });
   };
 
   const togglePanel = () => { if (isVisible) hidePanel(); else showPanel(); };
@@ -678,7 +694,7 @@
   });
 
   // ── Restore panel if it was open on a previous page visit ────────────────
-  chrome.storage.local.get(['panelVisible'], (res) => {
+  storageGet(['panelVisible'], (res) => {
     if (res.panelVisible) showPanel();
   });
 })();

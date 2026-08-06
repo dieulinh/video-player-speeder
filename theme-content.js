@@ -4,6 +4,19 @@
 
   const THEME_KEY = 'viewTheme';
   const OVERLAY_ID = '__speed_theme_overlay';
+  const storageLocal = chrome?.storage?.local;
+  const storageGet = (keys, cb) => {
+    if (storageLocal) {
+      storageLocal.get(keys, cb);
+      return;
+    }
+    if (typeof cb === 'function') cb({});
+  };
+  const storageSet = (values) => {
+    if (storageLocal) {
+      storageLocal.set(values);
+    }
+  };
   const themes = {
     light: { label: 'Day', overlay: 'transparent', opacity: 0 },
     dim: { label: 'Dim', overlay: 'rgba(0, 0, 0, 0.28)', opacity: 1 },
@@ -53,8 +66,8 @@
     document.documentElement.dataset.speedTheme = theme;
     if (buttonContainer) setButtonsActive(buttonContainer, theme);
 
-    if (persist && chrome?.storage?.local) {
-      chrome.storage.local.set({ [THEME_KEY]: theme });
+    if (persist) {
+      storageSet({ [THEME_KEY]: theme });
     }
   };
 
@@ -130,8 +143,8 @@
         applyTheme(effectiveTheme, { persist: false, buttonContainer: grid });
       };
 
-      if (chrome?.storage?.local) {
-        chrome.storage.local.get([THEME_KEY], (result) => {
+      if (storageLocal) {
+        storageGet([THEME_KEY], (result) => {
           const saved = result?.[THEME_KEY];
           onReady(saved);
         });

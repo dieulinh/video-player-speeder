@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Speed Buttons",
-  "version": "1.0",
+  "version": "2.0",
   "description": "Extension with 10 speed buttons (1x to 10x)",
   "action": {
     "default_icon": {

@@ -20,6 +20,20 @@ document.addEventListener('DOMContentLoaded', () => {
   let isLoopEnabled = false;
   let activeTheme = 'light';
 
+  const storageLocal = chrome?.storage?.local;
+  const storageGet = (keys, cb) => {
+    if (storageLocal) {
+      storageLocal.get(keys, cb);
+      return;
+    }
+    if (typeof cb === 'function') cb({});
+  };
+  const storageSet = (values) => {
+    if (storageLocal) {
+      storageLocal.set(values);
+    }
+  };
+
   const formatTime = (seconds) => {
     if (typeof seconds !== 'number' || Number.isNaN(seconds) || seconds < 0) {
       return '--:--';
@@ -157,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   applyTheme(activeTheme);
 
-  chrome.storage.local.get(['popupCollapsed', 'videoLoopEnabled', 'viewTheme'], (result) => {
+  storageGet(['popupCollapsed', 'videoLoopEnabled', 'viewTheme'], (result) => {
     isCollapsed = Boolean(result.popupCollapsed);
     isLoopEnabled = Boolean(result.videoLoopEnabled);
     activeTheme = result.viewTheme || 'light';
@@ -174,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => {
       const selectedTheme = button.dataset.theme;
       applyTheme(selectedTheme);
-      chrome.storage.local.set({ viewTheme: activeTheme });
+      storageSet({ viewTheme: activeTheme });
     });
   });
 
@@ -182,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     collapseBtn.addEventListener('click', () => {
       isCollapsed = !isCollapsed;
       applyCollapsedState();
-      chrome.storage.local.set({ popupCollapsed: isCollapsed });
+      storageSet({ popupCollapsed: isCollapsed });
     });
   }
 
@@ -262,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
 
-          chrome.storage.local.set({ videoLoopEnabled: enabled });
+          storageSet({ videoLoopEnabled: enabled });
 
           const summary = payload.summary || payload;
           if (summary) {
@@ -366,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Load and highlight the saved speed
-  chrome.storage.local.get(['videoSpeed', 'speedStartedAt'], (result) => {
+  storageGet(['videoSpeed', 'speedStartedAt'], (result) => {
     if (result.videoSpeed) {
       buttons.forEach(btn => {
         if (btn.getAttribute('data-speed') === result.videoSpeed.toString()) {
@@ -395,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Save the speed to Chrome storage
       const startedAt = Date.now();
-      chrome.storage.local.set({
+      storageSet({
         videoSpeed: parseFloat(speed),
         speedStartedAt: startedAt
       });
