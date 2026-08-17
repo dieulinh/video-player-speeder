@@ -452,6 +452,36 @@
       speedTimerInterval = setInterval(updateSpeedTimer, 1000);
     };
 
+    // ─ Auto-apply saved speed to new videos ─
+    let lastAppliedVideoElements = new WeakSet();
+    let savedSpeed = null;
+    
+    const applyAutoSpeed = () => {
+      if (!savedSpeed || !Number.isFinite(savedSpeed)) return;
+      const videos = getAllVideos();
+      videos.forEach(v => {
+        // Only apply to videos we haven't seen before
+        if (!lastAppliedVideoElements.has(v)) {
+          v.playbackRate = savedSpeed;
+          lastAppliedVideoElements.add(v);
+        }
+      });
+    };
+
+    // ─ Watch for new video elements being added to DOM ─
+    const observerConfig = { childList: true, subtree: true };
+    const mutationObserver = new MutationObserver(() => {
+      // Defer the check to avoid running on every mutation
+      clearTimeout(mutationObserver._checkTimeout);
+      mutationObserver._checkTimeout = setTimeout(applyAutoSpeed, 100);
+    });
+    
+    try {
+      mutationObserver.observe(document.documentElement, observerConfig);
+    } catch (e) {
+      console.warn('Could not observe DOM mutations:', e);
+    }
+
     // ─ Render video status ─
     const renderStatus = (data) => {
       if (!videoStatus) return;
@@ -518,14 +548,27 @@
       applyTheme(res.viewTheme || 'light');
       if (loopToggle) loopToggle.checked = isLoopEnabled;
       if (loopStatus) loopStatus.textContent = isLoopEnabled ? 'Loop: On' : 'Loop: Off';
-      if (res.videoSpeed) {
+      
+      // Restore and apply saved speed
+      if (res.videoSpeed && Number.isFinite(res.videoSpeed)) {
+        savedSpeed = res.videoSpeed;
         speedButtons.forEach(btn => {
           if (parseFloat(btn.getAttribute('data-speed')) === res.videoSpeed) btn.classList.add('active');
         });
+        // Apply saved speed to any videos already on the page
+        const videos = getAllVideos();
+        videos.forEach(v => { 
+          v.playbackRate = res.videoSpeed;
+          lastAppliedVideoElements.add(v);
+        });
       }
+      
       if (res.speedStartedAt && Number.isFinite(res.speedStartedAt)) startSpeedTimer(res.speedStartedAt);
       else updateSpeedTimer();
     });
+
+    // ─ Always start auto-apply for any new videos that appear ─
+    setInterval(applyAutoSpeed, 500);
 
     // ─ Event: collapse ─
     collapseBtn?.addEventListener('click', () => {
@@ -555,10 +598,17 @@
         const startedAt = Date.now();
       
         startSpeedTimer(startedAt);
+        // Update saved speed for auto-apply mechanism
+        savedSpeed = speed;
         // Apply directly — content script already lives in the page DOM
         const videos = getAllVideos();
-        videos.forEach(v => { v.playbackRate = speed; });
+        videos.forEach(v => { 
+          v.playbackRate = speed;
+          lastAppliedVideoElements.add(v);
+        });
         sessionStorage.setItem('preferredVideoSpeed', String(speed));
+        // Save to persistent storage for cross-tab access
+        storageSet({ videoSpeed: speed, speedStartedAt: startedAt });
         renderStatus(buildSummary(videos));
       });
     });
