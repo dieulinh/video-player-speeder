@@ -43,21 +43,21 @@
   };
 
   // ── Video helpers ────────────────────────────────────────────────────────
+  // SIMPLIFIED: Find main document videos + YouTube shadow DOM only
   const getAllVideos = () => {
     const videos = [...document.querySelectorAll('video')];
-    document.querySelectorAll('*').forEach(el => {
-      if (el.shadowRoot) videos.push(...el.shadowRoot.querySelectorAll('video'));
-    });
-    document.querySelectorAll('iframe').forEach(iframe => {
-      // contentDocument returns null for cross-origin frames without throwing,
-      // avoiding the requestStorageAccessFor permission error.
-      const doc = iframe.contentDocument;
-      if (!doc) return;
-      videos.push(...doc.querySelectorAll('video'));
-      doc.querySelectorAll('*').forEach(el => {
-        if (el.shadowRoot) videos.push(...el.shadowRoot.querySelectorAll('video'));
-      });
-    });
+    
+    // Only check YouTube player (most common shadow DOM video source)
+    try {
+      const ytPlayer = document.querySelector('div.html5-video-container')?.parentElement;
+      if (ytPlayer?.shadowRoot) {
+        const shadowVideos = ytPlayer.shadowRoot.querySelectorAll('video');
+        for (let i = 0; i < shadowVideos.length; i++) {
+          if (!videos.includes(shadowVideos[i])) videos.push(shadowVideos[i]);
+        }
+      }
+    } catch (e) {}
+    
     return videos;
   };
 
@@ -211,6 +211,17 @@
     background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   }
 
+  /* Reset button */
+  .reset-btn {
+    width: 100%; padding: 12px 10px; margin-top: 8px; font-size: 14px; font-weight: 700;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff; border: none; border-radius: 9px;
+    cursor: pointer; transition: transform 0.1s, opacity 0.1s, box-shadow 0.1s;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  }
+  .reset-btn:hover { transform: translateY(-2px); opacity: 0.9; box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4); }
+  .reset-btn:active { transform: translateY(0); }
+
   /* Clock */
   .clock {
     text-align: center; font-size: 20px; font-weight: 700; color: var(--text-strong);
@@ -299,39 +310,40 @@
       <div>
         <div class="section-label">Playback speed</div>
         <div class="speed-grid">
-          <button class="speed-btn" data-speed="1">1x</button>
-          <button class="speed-btn" data-speed="1.1">1.1x</button>
-          <button class="speed-btn" data-speed="1.15">1.15x</button>
-          <button class="speed-btn" data-speed="1.2">1.2x</button>
-          <button class="speed-btn" data-speed="1.25">1.25x</button>
-          <button class="speed-btn" data-speed="1.3">1.3x</button>
-          <button class="speed-btn" data-speed="1.35">1.35x</button>
-          <button class="speed-btn" data-speed="1.4">1.4x</button>
-          <button class="speed-btn" data-speed="1.45">1.45x</button>
-          <button class="speed-btn" data-speed="1.5">1.5x</button>
-          <button class="speed-btn" data-speed="1.55">1.55x</button>
-          <button class="speed-btn" data-speed="1.6">1.6x</button>
-          <button class="speed-btn" data-speed="1.65">1.65x</button>
-          <button class="speed-btn" data-speed="1.75">1.75x</button>
-          <button class="speed-btn" data-speed="1.85">1.85x</button>
-          <button class="speed-btn" data-speed="1.95">1.95x</button>
-          <button class="speed-btn" data-speed="2">2x</button>
-          <button class="speed-btn" data-speed="2.25">2.25x</button>
-          <button class="speed-btn" data-speed="2.5">2.5x</button>
-          <button class="speed-btn" data-speed="2.75">2.75x</button>
-          <button class="speed-btn" data-speed="3">3x</button>
-          <button class="speed-btn" data-speed="3.25">3.25x</button>
-          <button class="speed-btn" data-speed="3.5">3.5x</button>
-          <button class="speed-btn" data-speed="4">4x</button>
-          <button class="speed-btn" data-speed="5">5x</button>
-          <button class="speed-btn" data-speed="6">6x</button>
-          <button class="speed-btn" data-speed="7">7x</button>
-          <button class="speed-btn" data-speed="8">8x</button>
-          <button class="speed-btn" data-speed="9">9x</button>
-          <button class="speed-btn" data-speed="10">10x</button>
-          <button class="speed-btn" data-speed="15">15x</button>
-          <button class="speed-btn" data-speed="16">16x</button>
+          <button class="speed-btn" data-speed="1">1</button>
+          <button class="speed-btn" data-speed="1.1">1.1</button>
+          <button class="speed-btn" data-speed="1.15">1.15</button>
+          <button class="speed-btn" data-speed="1.2">1.2</button>
+          <button class="speed-btn" data-speed="1.25">1.25</button>
+          <button class="speed-btn" data-speed="1.3">1.3</button>
+          <button class="speed-btn" data-speed="1.35">1.35</button>
+          <button class="speed-btn" data-speed="1.4">1.4</button>
+          <button class="speed-btn" data-speed="1.45">1.45</button>
+          <button class="speed-btn" data-speed="1.5">1.5</button>
+          <button class="speed-btn" data-speed="1.55">1.55</button>
+          <button class="speed-btn" data-speed="1.6">1.6</button>
+          <button class="speed-btn" data-speed="1.65">1.65</button>
+          <button class="speed-btn" data-speed="1.75">1.75</button>
+          <button class="speed-btn" data-speed="1.85">1.85</button>
+          <button class="speed-btn" data-speed="1.95">1.95</button>
+          <button class="speed-btn" data-speed="2">2</button>
+          <button class="speed-btn" data-speed="2.25">2.25</button>
+          <button class="speed-btn" data-speed="2.5">2.5</button>
+          <button class="speed-btn" data-speed="2.75">2.75</button>
+          <button class="speed-btn" data-speed="3">3</button>
+          <button class="speed-btn" data-speed="3.25">3.25</button>
+          <button class="speed-btn" data-speed="3.5">3.5</button>
+          <button class="speed-btn" data-speed="4">4</button>
+          <button class="speed-btn" data-speed="5">5</button>
+          <button class="speed-btn" data-speed="6">6</button>
+          <button class="speed-btn" data-speed="7">7</button>
+          <button class="speed-btn" data-speed="8">8</button>
+          <button class="speed-btn" data-speed="9">9</button>
+          <button class="speed-btn" data-speed="10">10</button>
+          <button class="speed-btn" data-speed="15">15</button>
+          <button class="speed-btn" data-speed="16">16</button>
         </div>
+        <button class="reset-btn" id="resetBtn" title="Reset speed to 1x">🔄 Reset to Normal</button>
       </div>
       <div class="clock" id="clockDisplay">00:00:00</div>
       <div class="status-box dashed" id="speedTimer">Speed timer: --</div>
@@ -432,6 +444,7 @@
     const rewindBtn   = shadow.getElementById('rewindBtn');
     const forwardBtn  = shadow.getElementById('forwardBtn');
     const openVideoBtn = shadow.getElementById('openVideoBtn');
+    const resetBtn     = shadow.getElementById('resetBtn');
     const themeButtons = shadow.querySelectorAll('.theme-btn');
     const speedButtons = shadow.querySelectorAll('.speed-btn');
 
@@ -457,30 +470,47 @@
     let savedSpeed = null;
     
     const applyAutoSpeed = () => {
-      if (!savedSpeed || !Number.isFinite(savedSpeed)) return;
+      if (!savedSpeed || !Number.isFinite(savedSpeed)) savedSpeed = 1;
       const videos = getAllVideos();
       videos.forEach(v => {
         // Only apply to videos we haven't seen before
         if (!lastAppliedVideoElements.has(v)) {
           v.playbackRate = savedSpeed;
           lastAppliedVideoElements.add(v);
+          
+          // Attach listener to restore speed if player resets it
+          const handler = () => {
+            if (v.playbackRate !== savedSpeed) {
+              v.playbackRate = savedSpeed;
+            }
+          };
+          
+          try {
+            v.addEventListener('ratechange', handler, { passive: true });
+          } catch (e) {}
         }
       });
     };
 
-    // ─ Watch for new video elements being added to DOM ─
-    const observerConfig = { childList: true, subtree: true };
-    const mutationObserver = new MutationObserver(() => {
-      // Defer the check to avoid running on every mutation
-      clearTimeout(mutationObserver._checkTimeout);
-      mutationObserver._checkTimeout = setTimeout(applyAutoSpeed, 100);
-    });
-    
-    try {
-      mutationObserver.observe(document.documentElement, observerConfig);
-    } catch (e) {
-      console.warn('Could not observe DOM mutations:', e);
-    }
+    // ─ Only restore speed if a player resets it (event-driven only) ─
+    // Removed continuous polling - ratechange listeners handle most cases
+    const maintainPlaybackSpeed = () => {
+      // This is now called rarely; only on user interaction or status check
+      if (!savedSpeed || !Number.isFinite(savedSpeed)) return;
+      const videos = getAllVideos();
+      videos.forEach(v => {
+        if (lastAppliedVideoElements.has(v) && Math.abs(v.playbackRate - savedSpeed) > 0.01) {
+          try { v.playbackRate = savedSpeed; } catch (e) {}
+        }
+      });
+    };
+
+    // ─ Watch for new video elements (DISABLED - too expensive) ─
+    // Polls are removed to prevent browser freezes
+    // Speed is maintained through event listeners only
+    // const observerConfig = { childList: true, subtree: false };
+    // const mutationObserver = new MutationObserver(() => { ... });
+    // mutationObserver.observe(document.body, observerConfig);
 
     // ─ Render video status ─
     const renderStatus = (data) => {
@@ -529,7 +559,7 @@
     // ─ Loop ─
     let isLoopEnabled = false;
 
-    // ─ Clock ─
+    // ─ Clock (update every 2 seconds instead of 1 to reduce overhead) ─
     if (clockEl) {
       const tick = () => {
         const now = new Date();
@@ -537,7 +567,7 @@
           .map(n => String(n).padStart(2, '0')).join(':');
       };
       tick();
-      setInterval(tick, 1000);
+      setInterval(tick, 2000); // Reduced from 1000ms to 2000ms
     }
 
     // ─ Load saved state ─
@@ -560,6 +590,19 @@
         videos.forEach(v => { 
           v.playbackRate = res.videoSpeed;
           lastAppliedVideoElements.add(v);
+          
+          // Attach listener only once per video
+          if (!v.__speedControllerAttached) {
+            try {
+              v.addEventListener('ratechange', () => {
+                // Use savedSpeed to always get current speed, not closure value
+                if (v.playbackRate !== savedSpeed) {
+                  v.playbackRate = savedSpeed;
+                }
+              }, { passive: true });
+              v.__speedControllerAttached = true;
+            } catch (e) {}
+          }
         });
       }
       
@@ -567,8 +610,9 @@
       else updateSpeedTimer();
     });
 
-    // ─ Always start auto-apply for any new videos that appear ─
-    setInterval(applyAutoSpeed, 500);
+    // ─ No continuous polling (causes browser freeze) ─
+    // Speed is maintained through event listeners only
+    // Status updates only when user interacts with panel
 
     // ─ Event: collapse ─
     collapseBtn?.addEventListener('click', () => {
@@ -588,29 +632,77 @@
       });
     });
 
+    // ─ Apply speed helper (shared by speed buttons and reset button) ─
+    let aggressiveMonitorInterval = null;
+    const applySpeed = (speed) => {
+      if (!Number.isFinite(speed)) return;
+      
+      // Clear any existing aggressive monitor
+      if (aggressiveMonitorInterval) clearInterval(aggressiveMonitorInterval);
+      
+      speedButtons.forEach(b => b.classList.remove('active'));
+      const matchingBtn = Array.from(speedButtons).find(b => parseFloat(b.getAttribute('data-speed')) === speed);
+      if (matchingBtn) matchingBtn.classList.add('active');
+      
+      const startedAt = Date.now();
+      startSpeedTimer(startedAt);
+      savedSpeed = speed;
+      
+      // Apply to all videos found
+      const videos = getAllVideos();
+      videos.forEach(v => { 
+        v.playbackRate = speed;
+        lastAppliedVideoElements.add(v);
+        
+        // Attach ratechange listener if not already present
+        if (!v.__speedControllerAttached) {
+          try {
+            v.addEventListener('ratechange', () => {
+              // Use savedSpeed to always get current speed, not closure value
+              if (v.playbackRate !== savedSpeed) v.playbackRate = savedSpeed;
+            }, { passive: true });
+            v.__speedControllerAttached = true;
+          } catch (e) {}
+        }
+      });
+      
+      // AGGRESSIVE MONITORING: For first 3 seconds after speed change, check every 100ms
+      // This fixes the ~2 second delay issue where players override the speed
+      const monitorStartTime = Date.now();
+      aggressiveMonitorInterval = setInterval(() => {
+        const elapsed = Date.now() - monitorStartTime;
+        if (elapsed > 3000) {
+          // After 3 seconds, stop aggressive monitoring (ratechange listeners take over)
+          clearInterval(aggressiveMonitorInterval);
+          aggressiveMonitorInterval = null;
+          return;
+        }
+        
+        // Check all videos and restore speed if overridden
+        const currentVideos = getAllVideos();
+        currentVideos.forEach(v => {
+          if (Math.abs(v.playbackRate - speed) > 0.01) {
+            try { v.playbackRate = speed; } catch (e) {}
+          }
+        });
+      }, 100); // Check every 100ms for speed changes
+      
+      sessionStorage.setItem('preferredVideoSpeed', String(speed));
+      storageSet({ videoSpeed: speed, speedStartedAt: startedAt });
+      renderStatus(buildSummary(videos));
+    };
+
     // ─ Event: speed buttons ─
     speedButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const speed = parseFloat(btn.getAttribute('data-speed'));
-        if (!Number.isFinite(speed)) return;
-        speedButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const startedAt = Date.now();
-      
-        startSpeedTimer(startedAt);
-        // Update saved speed for auto-apply mechanism
-        savedSpeed = speed;
-        // Apply directly — content script already lives in the page DOM
-        const videos = getAllVideos();
-        videos.forEach(v => { 
-          v.playbackRate = speed;
-          lastAppliedVideoElements.add(v);
-        });
-        sessionStorage.setItem('preferredVideoSpeed', String(speed));
-        // Save to persistent storage for cross-tab access
-        storageSet({ videoSpeed: speed, speedStartedAt: startedAt });
-        renderStatus(buildSummary(videos));
+        applySpeed(speed);
       });
+    });
+
+    // ─ Event: reset button ─
+    resetBtn?.addEventListener('click', () => {
+      applySpeed(1);
     });
 
     // ─ Event: skip ad ─
