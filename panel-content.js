@@ -28,19 +28,50 @@
     return h > 0 ? `${h}:${mm}:${ss}` : `${mm.padStart(2, '0')}:${ss}`;
   };
 
-  const storageLocal = chrome?.storage?.local;
+  // ── Storage with graceful context invalidation handling ──────────────────
+  const isExtensionContextValid = () => {
+    try {
+      return !!(chrome?.storage?.local);
+    } catch (e) {
+      return false;
+    }
+  };
+
   const storageGet = (keys, cb) => {
-    if (storageLocal) {
-      storageLocal.get(keys, cb);
+    if (!isExtensionContextValid()) {
+      if (typeof cb === 'function') cb({});
       return;
     }
-    if (typeof cb === 'function') cb({});
-  };
-  const storageSet = (values) => {
-    if (storageLocal) {
-      storageLocal.set(values);
+    try {
+      chrome.storage.local.get(keys, (result) => {
+        if (chrome.runtime.lastError) {
+          console.warn('[Speed Control] Storage read error:', chrome.runtime.lastError.message);
+          if (typeof cb === 'function') cb({});
+          return;
+        }
+        if (typeof cb === 'function') cb(result || {});
+      });
+    } catch (e) {
+      console.warn('[Speed Control] Storage error:', e.message || e);
+      if (typeof cb === 'function') cb({});
     }
   };
+
+  const storageSet = (values) => {
+    if (!isExtensionContextValid()) return;
+    if (!values || typeof values !== 'object') return;
+    
+    try {
+      chrome.storage.local.set(values, () => {
+        if (chrome.runtime.lastError) {
+          console.warn('[Speed Control] Storage write error:', chrome.runtime.lastError.message);
+        }
+      });
+    } catch (e) {
+      console.warn('[Speed Control] Storage error:', e.message || e);
+    }
+  };
+  
 
   // ── Video helpers ────────────────────────────────────────────────────────
   // SIMPLIFIED: Find main document videos + YouTube shadow DOM only
@@ -335,11 +366,6 @@
           <button class="speed-btn" data-speed="3.5">3.5</button>
           <button class="speed-btn" data-speed="4">4</button>
           <button class="speed-btn" data-speed="5">5</button>
-          <button class="speed-btn" data-speed="6">6</button>
-          <button class="speed-btn" data-speed="7">7</button>
-          <button class="speed-btn" data-speed="8">8</button>
-          <button class="speed-btn" data-speed="9">9</button>
-          <button class="speed-btn" data-speed="10">10</button>
           <button class="speed-btn" data-speed="15">15</button>
           <button class="speed-btn" data-speed="16">16</button>
         </div>
@@ -383,32 +409,9 @@
     const PANEL_W = 265;
     const MARGIN = 12;
 
-    const largestVideo = Array.from(document.querySelectorAll('video'))
-      .filter(v => { try { const r = v.getBoundingClientRect(); return r.width > 0 && r.height > 0; } catch (_) { return false; } })
-      .reduce((best, v) => {
-        if (!best) return v;
-        const rb = best.getBoundingClientRect(), rv = v.getBoundingClientRect();
-        return (rv.width * rv.height) > (rb.width * rb.height) ? v : best;
-      }, null);
-
-    let left, top;
-
-    if (largestVideo) {
-      const rect = largestVideo.getBoundingClientRect();
-      const rightSpace = window.innerWidth - rect.right;
-
-      // Prefer the gap to the right of the video; fall back to right viewport edge
-      left = rightSpace >= PANEL_W + MARGIN * 2
-        ? rect.right + MARGIN
-        : window.innerWidth - PANEL_W - MARGIN;
-
-      const panelHEst = Math.min(560, window.innerHeight - 40);
-      const videoCenterY = rect.top + rect.height / 2;
-      top = Math.max(MARGIN, Math.min(videoCenterY - panelHEst / 2, window.innerHeight - panelHEst - MARGIN));
-    } else {
-      left = window.innerWidth - PANEL_W - MARGIN;
-      top = Math.max(MARGIN, Math.round((window.innerHeight - 460) / 2));
-    }
+    // Always position at the most right edge of the browser
+    const left = window.innerWidth - PANEL_W - MARGIN;
+    const top = Math.max(MARGIN, Math.round((window.innerHeight - 460) / 2));
 
     host.style.left = `${left}px`;
     host.style.top  = `${top}px`;

@@ -20,17 +20,47 @@ document.addEventListener('DOMContentLoaded', () => {
   let isLoopEnabled = false;
   let activeTheme = 'light';
 
-  const storageLocal = chrome?.storage?.local;
+  // ── Storage with graceful context invalidation handling ──────────────────
+  const isExtensionContextValid = () => {
+    try {
+      return !!(chrome?.storage?.local);
+    } catch (e) {
+      return false;
+    }
+  };
+
   const storageGet = (keys, cb) => {
-    if (storageLocal) {
-      storageLocal.get(keys, cb);
+    if (!isExtensionContextValid()) {
+      if (typeof cb === 'function') cb({});
       return;
     }
-    if (typeof cb === 'function') cb({});
+    try {
+      chrome.storage.local.get(keys, (result) => {
+        if (chrome.runtime.lastError) {
+          console.warn('[Speed Control] Storage read error:', chrome.runtime.lastError.message);
+          if (typeof cb === 'function') cb({});
+          return;
+        }
+        if (typeof cb === 'function') cb(result || {});
+      });
+    } catch (e) {
+      console.warn('[Speed Control] Storage error:', e.message || e);
+      if (typeof cb === 'function') cb({});
+    }
   };
+
   const storageSet = (values) => {
-    if (storageLocal) {
-      storageLocal.set(values);
+    if (!isExtensionContextValid()) return;
+    if (!values || typeof values !== 'object') return;
+    
+    try {
+      chrome.storage.local.set(values, () => {
+        if (chrome.runtime.lastError) {
+          console.warn('[Speed Control] Storage write error:', chrome.runtime.lastError.message);
+        }
+      });
+    } catch (e) {
+      console.warn('[Speed Control] Storage error:', e.message || e);
     }
   };
 
