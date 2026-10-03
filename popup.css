@@ -150,14 +150,15 @@ body.collapsed .panel-content {
   margin: 0;
 }
 
-.button-grid {
+.speed-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(45px, 55px));
-  gap: 6px;
+  grid-template-columns: repeat(6, minmax(60px, 65px));
+  gap: 5px;
 }
 
 .speed-btn {
   padding: 8px 0;
+  width: 50px;
   font-size: 12px;
   font-weight: 700;
   background: linear-gradient(135deg, var(--success), #16a34a);

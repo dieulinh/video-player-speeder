@@ -28,47 +28,92 @@
     return h > 0 ? `${h}:${mm}:${ss}` : `${mm.padStart(2, '0')}:${ss}`;
   };
 
-  // ── Storage with graceful context invalidation handling ──────────────────
+  // ── Storage with bulletproof context invalidation handling ──────────────
   const isExtensionContextValid = () => {
     try {
+      // Don't rely on chrome.runtime.id check - just verify storage exists
       return !!(chrome?.storage?.local);
     } catch (e) {
       return false;
     }
   };
 
+  // Hybrid storage: tries chrome.storage, falls back to sessionStorage
   const storageGet = (keys, cb) => {
-    if (!isExtensionContextValid()) {
-      if (typeof cb === 'function') cb({});
-      return;
+    if (typeof cb !== 'function') return;
+    
+    // Try chrome.storage first (with defensive try-catch around the entire operation)
+    if (isExtensionContextValid()) {
+      try {
+        chrome.storage.local.get(keys, (result) => {
+          try {
+            if (chrome.runtime.lastError) {
+              console.warn('[Speed Control] Chrome storage read failed, using session storage:', chrome.runtime.lastError.message);
+              // Fall back to sessionStorage
+              const fallbackResult = {};
+              const keyArray = Array.isArray(keys) ? keys : (typeof keys === 'string' ? [keys] : Object.keys(keys || {}));
+              keyArray.forEach(k => {
+                const stored = sessionStorage.getItem(`speed_control_${k}`);
+                if (stored) {
+                  try { fallbackResult[k] = JSON.parse(stored); } catch (_) { fallbackResult[k] = stored; }
+                }
+              });
+              cb(fallbackResult);
+              return;
+            }
+            cb(result || {});
+          } catch (callbackError) {
+            console.warn('[Speed Control] Error in storage callback:', callbackError?.message);
+            cb({});
+          }
+        });
+        return;
+      } catch (e) {
+        console.warn('[Speed Control] Chrome storage.get threw exception:', e?.message);
+        // Fall through to sessionStorage below
+      }
     }
-    try {
-      chrome.storage.local.get(keys, (result) => {
-        if (chrome.runtime.lastError) {
-          console.warn('[Speed Control] Storage read error:', chrome.runtime.lastError.message);
-          if (typeof cb === 'function') cb({});
-          return;
-        }
-        if (typeof cb === 'function') cb(result || {});
-      });
-    } catch (e) {
-      console.warn('[Speed Control] Storage error:', e.message || e);
-      if (typeof cb === 'function') cb({});
-    }
+    
+    // Fall back to sessionStorage
+    const result = {};
+    const keyArray = Array.isArray(keys) ? keys : (typeof keys === 'string' ? [keys] : Object.keys(keys || {}));
+    keyArray.forEach(k => {
+      const stored = sessionStorage.getItem(`speed_control_${k}`);
+      if (stored) {
+        try { result[k] = JSON.parse(stored); } catch (_) { result[k] = stored; }
+      }
+    });
+    cb(result);
   };
 
   const storageSet = (values) => {
-    if (!isExtensionContextValid()) return;
     if (!values || typeof values !== 'object') return;
     
-    try {
-      chrome.storage.local.set(values, () => {
-        if (chrome.runtime.lastError) {
-          console.warn('[Speed Control] Storage write error:', chrome.runtime.lastError.message);
-        }
-      });
-    } catch (e) {
-      console.warn('[Speed Control] Storage error:', e.message || e);
+    // Always save to sessionStorage as backup
+    Object.entries(values).forEach(([k, v]) => {
+      try {
+        sessionStorage.setItem(`speed_control_${k}`, typeof v === 'object' ? JSON.stringify(v) : String(v));
+      } catch (e) {
+        console.warn('[Speed Control] Session storage write failed:', e?.message);
+      }
+    });
+    
+    // Try to also save to chrome.storage (best effort)
+    if (isExtensionContextValid()) {
+      try {
+        chrome.storage.local.set(values, () => {
+          try {
+            if (chrome.runtime.lastError) {
+              console.warn('[Speed Control] Chrome storage write failed (will use session storage):', chrome.runtime.lastError.message);
+            }
+          } catch (e) {
+            // Callback error - ignore, sessionStorage already saved
+          }
+        });
+      } catch (e) {
+        console.warn('[Speed Control] Chrome storage.set threw exception:', e?.message);
+        // sessionStorage already saved as backup above
+      }
     }
   };
   
@@ -229,7 +274,7 @@
   }
 
   /* Speed grid */
-  .speed-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .speed-grid { display: grid; grid-template-columns: repeat(4, minmax(60px, 1fr)); gap: 4px; }
   .speed-btn {
     padding: 7px 2px; font-size: 11px; font-weight: 700;
     background: linear-gradient(135deg, var(--success), var(--success-strong));
@@ -364,8 +409,9 @@
           <button class="speed-btn" data-speed="3">3</button>
           <button class="speed-btn" data-speed="3.25">3.25</button>
           <button class="speed-btn" data-speed="3.5">3.5</button>
-          <button class="speed-btn" data-speed="4">4</button>
           <button class="speed-btn" data-speed="5">5</button>
+          <button class="speed-btn" data-speed="8">8</button>
+          <button class="speed-btn" data-speed="10">10</button>
           <button class="speed-btn" data-speed="15">15</button>
           <button class="speed-btn" data-speed="16">16</button>
         </div>

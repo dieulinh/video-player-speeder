@@ -2,8 +2,11 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="cache-control" content="no-cache">
   <title>Speed Buttons</title>
-  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="popup.css?v=3">
+  <script src="popup.js?v=2"></script>
 </head>
 <body>
   <div class="container">
@@ -23,7 +26,7 @@
         </div>
       </div>
 
-      <div class="button-grid">
+      <div class="speed-grid">
         <button class="speed-btn" data-speed="1">1</button>
         <button class="speed-btn" data-speed="1.1">1.1</button>
         <button class="speed-btn" data-speed="1.15">1.15</button>
@@ -71,7 +74,7 @@
             <span class="loop-slider" aria-hidden="true"></span>
             <span class="loop-text">Loop video</span>
           </label>
-          <div class="loop-status" id="loopStatus">Loop: Off</div>
+       
         </div>
       </div>
       
@@ -83,6 +86,6 @@
       </div>
     </div>
   </div>
-  <script src="popup.js"></script>
+  <script src="popup.js?v=1"></script>
 </body>
 </html>
